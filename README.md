@@ -1,94 +1,78 @@
-# 📊 Health Score — Monitoramento de Risco de Churn
+# Health Score — Monitoramento de Risco de Churn
 
-Sistema de monitoramento semanal de saúde de clientes, desenvolvido para antecipar riscos de churn em agências de marketing.
+Esse projeto nasceu de uma necessidade real do meu trabalho. Na agência onde atuo, acompanho vários clientes ao mesmo tempo e precisava de uma forma de identificar quem estava em risco de cancelar antes que isso acontecesse — sem depender só da intuição.
 
----
-
-## 💡 Contexto
-
-Em agências que atendem múltiplos clientes simultaneamente, identificar sinais de insatisfação antes do cancelamento é essencial. Este projeto automatiza o cálculo de um **health score semanal** com base em indicadores comportamentais, permitindo que o time de CS atue de forma proativa.
+A solução que criei usava Google Sheets e Apps Script. Aqui refiz a lógica em Python para estudar a linguagem e deixar o projeto mais acessível.
 
 ---
 
-## ⚙️ Como funciona
+## Como funciona
 
-A cada semana, os dados dos clientes são registrados em um CSV com 4 indicadores:
+Todo cliente recebe uma pontuação semanal com base em 4 indicadores que acompanhamos na agência:
 
-| Indicador    | Descrição                                      | Pontuação |
-|--------------|------------------------------------------------|-----------|
-| Operacional  | Ocorrência de erros operacionais               | 30 pts    |
-| Criativo     | Necessidade de refazer criativos               | 20 pts    |
-| Resultado    | Semana com resultado positivo                  | 30 pts    |
-| Interação    | Cliente ativo no grupo de comunicação          | 20 pts    |
+| Indicador | O que avalia | Peso |
+|-----------|-------------|------|
+| Operacional | Se houve erro operacional na semana | 30 pts |
+| Criativo | Se precisou refazer algum criativo | 20 pts |
+| Resultado | Se a semana teve resultado positivo | 30 pts |
+| Interação | Se o cliente está ativo no grupo | 20 pts |
 
-**Score máximo: 100 pontos**
+A soma define o nível de risco:
 
-### Classificação de risco
-
-| Score     | Status       |
-|-----------|--------------|
-| 80 – 100  | 🟢 Saudável  |
-| 50 – 79   | 🟡 Atenção   |
-| 0 – 49    | 🔴 Risco Alto |
+- **80 a 100** — cliente saudável, sem ação necessária
+- **50 a 79** — atenção, vale acompanhar de perto
+- **0 a 49** — risco alto, agir antes que peça cancelamento
 
 ---
 
-## 🚀 Como usar
+## O que cada arquivo faz
 
-### 1. Clone o repositório
-```bash
-git clone https://github.com/klopescode/health-score-churn.git
-cd health-score-churn
-```
+**health_score.py** — lê os dados do CSV, calcula o score de cada cliente, mostra quem está em risco e compara com a semana anterior pra ver se a situação melhorou ou piorou.
 
-### 2. Instale as dependências
+**relatorio_email.py** — pega o resultado gerado pelo script acima e manda um e-mail formatado automaticamente. Criei isso porque na prática precisava compartilhar o relatório com o time toda sexta sem ter que montar nada manualmente.
+
+**dados_clientes.csv** — dados fictícios que usei pra testar. Na versão real, esses dados vinham de uma planilha preenchida semanalmente pela equipe.
+
+---
+
+## Como rodar
+
+Instala o pandas se ainda não tiver:
+
 ```bash
 pip install pandas
 ```
 
-### 3. Execute o script
+Roda o health score primeiro:
+
 ```bash
 python health_score.py
 ```
 
-### 4. Resultado esperado
-O script exibe no terminal:
-- Health score de cada cliente na última semana
-- Clientes em risco alto que precisam de ação imediata
-- Comparativo de variação em relação à semana anterior
+Se quiser também enviar o e-mail, configura suas credenciais:
 
-Também gera um arquivo `relatorio_health_score.csv` com o histórico completo.
-
----
-
-## 📁 Estrutura do projeto
-
-```
-health-score-churn/
-│
-├── health_score.py          # Script principal
-├── dados_clientes.csv       # Base de dados semanal (fictícia)
-├── relatorio_health_score.csv  # Gerado ao executar o script
-└── README.md
+```bash
+export EMAIL_REMETENTE="seuemail@gmail.com"
+export EMAIL_SENHA="sua_senha_de_app"
+export EMAIL_DESTINO="destinatario@gmail.com"
 ```
 
----
+E roda o segundo script:
 
-## 🛠️ Tecnologias
+```bash
+python relatorio_email.py
+```
 
-- Python 3
-- Pandas
+Se não configurar o e-mail, ele gera um arquivo `preview_email.html` que você pode abrir no navegador pra ver como ficaria.
 
----
-
-## 📌 Próximos passos
-
-- [ ] Integração direta com Google Sheets via API
-- [ ] Envio automático de alertas por e-mail
-- [ ] Dashboard visual com matplotlib ou Streamlit
+> A senha precisa ser uma senha de app do Gmail, não a senha da sua conta. Você gera em: Conta Google → Segurança → Verificação em duas etapas → Senhas de app.
 
 ---
 
-## 👩‍💻 Autora
+## Próximos passos
 
-Desenvolvido por [Kamila](https://github.com/klopescode) — projeto baseado em solução real implementada em ambiente corporativo.
+Tenho vontade de conectar isso direto ao Google Sheets via API, pra não precisar mais do CSV manual. Também quero testar agendar o envio automático toda sexta com algum agendador de tarefas.
+
+---
+
+Feito por [Kamila Lopes](https://github.com/klopescode)
