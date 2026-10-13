@@ -29,11 +29,11 @@ Além da nota da semana, o sistema conta há quantas semanas seguidas cada clien
 
 ## O que cada arquivo faz
 
-**health_score.py** — lê os dados do CSV, confere se estão preenchidos corretamente, calcula o score de cada cliente, mostra quem está em risco (e há quantas semanas) e compara com a semana anterior pra ver se a situação melhorou ou piorou. Também avisa quando um cliente é novo ou quando ficou sem dados na semana.
+**src/health_score.py** — lê os dados do CSV, confere se estão preenchidos corretamente, calcula o score de cada cliente, mostra quem está em risco (e há quantas semanas) e compara com a semana anterior pra ver se a situação melhorou ou piorou. Também avisa quando um cliente é novo ou quando ficou sem dados na semana.
 
-**relatorio_email.py** — pega o resultado gerado pelo script acima e manda um e-mail formatado automaticamente. Criei isso porque na prática precisava compartilhar o relatório com o time toda sexta sem ter que montar nada manualmente.
+**src/relatorio_email.py** — pega o resultado gerado pelo script acima e manda um e-mail formatado automaticamente. Criei isso porque na prática precisava compartilhar o relatório com o time toda sexta sem ter que montar nada manualmente.
 
-**dados_clientes.csv** — dados fictícios que usei pra testar. Na versão real, esses dados vinham de uma planilha preenchida semanalmente pela equipe.
+**data/dados_clientes.csv** — dados fictícios que usei pra testar. Na versão real, esses dados vinham de uma planilha preenchida semanalmente pela equipe.
 
 **tests/** — testes automatizados dos dois scripts, feitos com pytest.
 
@@ -68,7 +68,7 @@ pip install -r requirements.txt
 Roda o health score primeiro:
 
 ```bash
-python health_score.py
+python src/health_score.py
 ```
 
 Se quiser também enviar o e-mail, configura suas credenciais:
@@ -82,10 +82,10 @@ export EMAIL_DESTINO="destinatario@gmail.com"
 E roda o segundo script:
 
 ```bash
-python relatorio_email.py
+python src/relatorio_email.py
 ```
 
-Se não configurar o e-mail, ele gera um arquivo `preview_email.html` que você pode abrir no navegador pra ver como ficaria.
+Se não configurar o e-mail, ele gera o arquivo `saidas/preview_email.html` que você pode abrir no navegador pra ver como ficaria.
 
 Os scripts podem ser rodados de qualquer pasta: eles sempre leem e salvam os arquivos na pasta do projeto. Se algo der errado (CSV com problema, relatório não encontrado ou falha no envio do e-mail), o script termina com código de saída 1, o que permite que um agendador de tarefas perceba a falha.
 

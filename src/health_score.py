@@ -22,16 +22,18 @@ Classificação de risco:
 - 0 a 49   : Risco Alto 🔴
 """
 
+import argparse
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 
-# --- Caminhos (relativos à pasta do script, para rodar de qualquer lugar) ---
-PASTA = Path(__file__).resolve().parent
-CAMINHO_DADOS     = PASTA / "dados_clientes.csv"
-CAMINHO_RELATORIO = PASTA / "relatorio_health_score.csv"
+# --- Caminhos (relativos à raiz do projeto, para rodar de qualquer lugar) ---
+RAIZ = Path(__file__).resolve().parent.parent
+CAMINHO_DADOS     = RAIZ / "data" / "dados_clientes.csv"
+PASTA_SAIDAS      = RAIZ / "saidas"
+CAMINHO_RELATORIO = PASTA_SAIDAS / "relatorio_health_score.csv"
 
 # --- Configurações de pontuação ---
 PESOS = {
@@ -242,12 +244,19 @@ def exibir_ultima_semana(df):
 
 
 # --- Main ---
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Calcula o health score semanal de cada cliente.")
+    parser.add_argument(
+        "dados", nargs="?", type=Path,
+        help="CSV com os indicadores semanais (padrão: data/dados_clientes.csv)",
+    )
+    caminho_dados = parser.parse_args(argv).dados or CAMINHO_DADOS
+
     print("\n🔍 Carregando dados...")
     try:
-        df = carregar_dados(CAMINHO_DADOS)
+        df = carregar_dados(caminho_dados)
     except FileNotFoundError:
-        print(f"❌ Arquivo não encontrado: {CAMINHO_DADOS}")
+        print(f"❌ Arquivo não encontrado: {caminho_dados}")
         sys.exit(1)
     except DadosInvalidosError as e:
         print(f"❌ {e}")
@@ -260,8 +269,9 @@ def main():
     exibir_tendencia(calcular_tendencia(df))
 
     # Salva relatório completo em CSV
+    CAMINHO_RELATORIO.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(CAMINHO_RELATORIO, index=False)
-    print(f"\n💾 Relatório salvo em: {CAMINHO_RELATORIO.name}\n")
+    print(f"\n💾 Relatório salvo em: {CAMINHO_RELATORIO}\n")
 
 
 if __name__ == "__main__":

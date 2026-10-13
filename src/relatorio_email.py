@@ -27,7 +27,7 @@ from health_score import (
     CAMINHO_RELATORIO,
     LIMITE_ATENCAO,
     LIMITE_SAUDAVEL,
-    PASTA,
+    PASTA_SAIDAS,
     DadosInvalidosError,
     descrever_sequencia,
 )
@@ -38,7 +38,7 @@ EMAIL_REMETENTE = os.environ.get("EMAIL_REMETENTE")  # seu e-mail
 EMAIL_SENHA     = os.environ.get("EMAIL_SENHA")       # senha de app do Gmail
 EMAIL_DESTINO   = os.environ.get("EMAIL_DESTINO", EMAIL_REMETENTE)  # quem recebe
 
-CAMINHO_PREVIEW = PASTA / "preview_email.html"
+CAMINHO_PREVIEW = PASTA_SAIDAS / "preview_email.html"
 
 COLUNAS_RELATORIO = ["semana", "cliente", "health_score", "risco", "semanas_em_risco"]
 
@@ -137,7 +137,8 @@ def enviar_email(html, semana, caminho_preview=CAMINHO_PREVIEW):
     if not EMAIL_REMETENTE or not EMAIL_SENHA:
         print("⚠️  Variáveis de ambiente não configuradas.")
         print("    Configure EMAIL_REMETENTE e EMAIL_SENHA antes de executar.")
-        print(f"\n📧 Prévia do e-mail gerada — veja o arquivo '{caminho_preview.name}'")
+        print(f"\n📧 Prévia do e-mail gerada — veja o arquivo 'saidas/{caminho_preview.name}'")
+        caminho_preview.parent.mkdir(parents=True, exist_ok=True)
         with open(caminho_preview, "w", encoding="utf-8") as f:
             f.write(html)
         return True

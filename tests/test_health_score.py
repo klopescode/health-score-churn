@@ -56,8 +56,10 @@ def test_carrega_dados_de_exemplo():
         assert df[coluna].isin([0, 1]).all()
 
 
-def test_caminho_padrao_fica_na_pasta_do_script():
-    assert hs.CAMINHO_DADOS == Path(hs.__file__).resolve().parent / "dados_clientes.csv"
+def test_caminhos_padrao_ficam_na_raiz_do_projeto():
+    raiz = Path(hs.__file__).resolve().parent.parent
+    assert hs.CAMINHO_DADOS == raiz / "data" / "dados_clientes.csv"
+    assert hs.CAMINHO_RELATORIO == raiz / "saidas" / "relatorio_health_score.csv"
 
 
 def test_espacos_extras_sao_ignorados(tmp_path):
@@ -217,17 +219,27 @@ def test_main_salva_relatorio_independente_da_pasta_atual(tmp_path, monkeypatch,
     outra_pasta.mkdir()
     monkeypatch.chdir(outra_pasta)
 
-    hs.main()
+    hs.main([])
 
     salvo = pd.read_csv(relatorio)
     assert {"health_score", "risco", "semanas_em_risco"} <= set(salvo.columns)
     assert "4ª semana seguida em risco" in capsys.readouterr().out
 
 
+def test_main_aceita_outro_csv_pela_linha_de_comando(tmp_path, monkeypatch):
+    relatorio = tmp_path / "saidas" / "relatorio.csv"
+    monkeypatch.setattr(hs, "CAMINHO_RELATORIO", relatorio)
+    dados = escrever_csv(tmp_path, ["2024-01-05,Cliente A,1,1,1,1"])
+
+    hs.main([str(dados)])
+
+    assert pd.read_csv(relatorio)["cliente"].tolist() == ["Cliente A"]
+
+
 def test_main_com_dados_invalidos_sai_com_erro(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(hs, "CAMINHO_DADOS", escrever_csv(tmp_path, ["2024-01-05,Cliente A,1,1,1,"]))
     with pytest.raises(SystemExit) as saida:
-        hs.main()
+        hs.main([])
     assert saida.value.code == 1
     assert "'interacao' está vazio" in capsys.readouterr().out
 
@@ -235,5 +247,5 @@ def test_main_com_dados_invalidos_sai_com_erro(tmp_path, monkeypatch, capsys):
 def test_main_sem_arquivo_sai_com_erro(tmp_path, monkeypatch):
     monkeypatch.setattr(hs, "CAMINHO_DADOS", tmp_path / "nao_existe.csv")
     with pytest.raises(SystemExit) as saida:
-        hs.main()
+        hs.main([])
     assert saida.value.code == 1
