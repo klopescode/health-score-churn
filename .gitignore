@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Arquivos gerados pelos scripts
+relatorio_health_score.csv
+preview_email.html

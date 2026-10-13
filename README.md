@@ -23,24 +23,46 @@ A soma define o nível de risco:
 - **50 a 79** — atenção, vale acompanhar de perto
 - **0 a 49** — risco alto, agir antes que peça cancelamento
 
+Além da nota da semana, o sistema conta há quantas semanas seguidas cada cliente está em risco alto. Um cliente na 4ª semana seguida em risco é mais urgente do que um que acabou de entrar, então ele aparece primeiro na lista de ação.
+
 ---
 
 ## O que cada arquivo faz
 
-**health_score.py** — lê os dados do CSV, calcula o score de cada cliente, mostra quem está em risco e compara com a semana anterior pra ver se a situação melhorou ou piorou.
+**health_score.py** — lê os dados do CSV, confere se estão preenchidos corretamente, calcula o score de cada cliente, mostra quem está em risco (e há quantas semanas) e compara com a semana anterior pra ver se a situação melhorou ou piorou. Também avisa quando um cliente é novo ou quando ficou sem dados na semana.
 
 **relatorio_email.py** — pega o resultado gerado pelo script acima e manda um e-mail formatado automaticamente. Criei isso porque na prática precisava compartilhar o relatório com o time toda sexta sem ter que montar nada manualmente.
 
 **dados_clientes.csv** — dados fictícios que usei pra testar. Na versão real, esses dados vinham de uma planilha preenchida semanalmente pela equipe.
 
+**tests/** — testes automatizados dos dois scripts, feitos com pytest.
+
+---
+
+## Formato do CSV
+
+| Coluna | Valor esperado |
+|--------|----------------|
+| semana | data no formato `AAAA-MM-DD` (ex.: `2024-01-26`) |
+| cliente | nome do cliente (não pode repetir na mesma semana) |
+| operacional, criativo, resultado, interacao | `0` ou `1` |
+
+Se alguma célula estiver vazia ou com valor errado, o script não calcula nada e mostra todos os problemas de uma vez, com o número da linha:
+
+```
+❌ Problemas encontrados no CSV:
+  - linha 20: 'interacao' deve ser 0 ou 1, mas está '2'
+  - linha 21: 'interacao' está vazio
+```
+
 ---
 
 ## Como rodar
 
-Instala o pandas se ainda não tiver:
+Instala as dependências:
 
 ```bash
-pip install pandas
+pip install -r requirements.txt
 ```
 
 Roda o health score primeiro:
@@ -65,7 +87,15 @@ python relatorio_email.py
 
 Se não configurar o e-mail, ele gera um arquivo `preview_email.html` que você pode abrir no navegador pra ver como ficaria.
 
+Os scripts podem ser rodados de qualquer pasta: eles sempre leem e salvam os arquivos na pasta do projeto. Se algo der errado (CSV com problema, relatório não encontrado ou falha no envio do e-mail), o script termina com código de saída 1, o que permite que um agendador de tarefas perceba a falha.
+
 > A senha precisa ser uma senha de app do Gmail, não a senha da sua conta. Você gera em: Conta Google → Segurança → Verificação em duas etapas → Senhas de app.
+
+Pra rodar os testes:
+
+```bash
+pytest
+```
 
 ---
 

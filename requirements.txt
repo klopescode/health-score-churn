@@ -1,0 +1,4 @@
+pandas>=2.0
+
+# Para rodar os testes
+pytest>=8.0

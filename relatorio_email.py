@@ -9,14 +9,28 @@ filtra os clientes em risco e envia um e-mail formatado automaticamente via Gmai
 Pré-requisitos:
 - Ter rodado o health_score.py antes (para gerar o relatorio_health_score.csv)
 - Configurar as variáveis de ambiente EMAIL_REMETENTE e EMAIL_SENHA (veja o README)
+
+Se o envio falhar, o script termina com código de saída 1, para que um
+agendador de tarefas consiga perceber o erro.
 """
 
 import pandas as pd
 import smtplib
 import os
+import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import date
+from html import escape
+
+from health_score import (
+    CAMINHO_RELATORIO,
+    LIMITE_ATENCAO,
+    LIMITE_SAUDAVEL,
+    PASTA,
+    DadosInvalidosError,
+    descrever_sequencia,
+)
 
 
 # --- Configurações ---
@@ -24,10 +38,19 @@ EMAIL_REMETENTE = os.environ.get("EMAIL_REMETENTE")  # seu e-mail
 EMAIL_SENHA     = os.environ.get("EMAIL_SENHA")       # senha de app do Gmail
 EMAIL_DESTINO   = os.environ.get("EMAIL_DESTINO", EMAIL_REMETENTE)  # quem recebe
 
+CAMINHO_PREVIEW = PASTA / "preview_email.html"
+
+COLUNAS_RELATORIO = ["semana", "cliente", "health_score", "risco", "semanas_em_risco"]
+
 
 # --- Leitura dos dados ---
-def carregar_relatorio(caminho="relatorio_health_score.csv"):
-    df = pd.read_csv(caminho)
+def carregar_relatorio(caminho=CAMINHO_RELATORIO):
+    df = pd.read_csv(caminho, dtype={"cliente": str, "risco": str}, keep_default_na=False)
+    faltando = [coluna for coluna in COLUNAS_RELATORIO if coluna not in df.columns]
+    if faltando:
+        raise DadosInvalidosError(
+            f"O relatório não tem as colunas: {', '.join(faltando)}. Rode o health_score.py de novo."
+        )
     df["semana"] = pd.to_datetime(df["semana"])
     return df
 
@@ -42,17 +65,19 @@ def ultima_semana(df):
 def montar_email(df):
     semana = df["semana"].iloc[0].date()
 
-    em_risco   = df[df["health_score"] < 50].sort_values("health_score")
-    atencao    = df[(df["health_score"] >= 50) & (df["health_score"] < 80)].sort_values("health_score")
-    saudaveis  = df[df["health_score"] >= 80].sort_values("health_score", ascending=False)
+    em_risco   = df[df["health_score"] < LIMITE_ATENCAO].sort_values(
+        ["semanas_em_risco", "health_score"], ascending=[False, True]
+    )
+    atencao    = df[(df["health_score"] >= LIMITE_ATENCAO) & (df["health_score"] < LIMITE_SAUDAVEL)].sort_values("health_score")
+    saudaveis  = df[df["health_score"] >= LIMITE_SAUDAVEL].sort_values("health_score", ascending=False)
 
     def linha_tabela(row):
-        cor = "#ffcccc" if row["health_score"] < 50 else "#fff9c4" if row["health_score"] < 80 else "#d4edda"
+        cor = "#ffcccc" if row["health_score"] < LIMITE_ATENCAO else "#fff9c4" if row["health_score"] < LIMITE_SAUDAVEL else "#d4edda"
         return f"""
         <tr style="background:{cor}">
-            <td style="padding:8px;border:1px solid #ddd">{row['cliente']}</td>
+            <td style="padding:8px;border:1px solid #ddd">{escape(row['cliente'])}</td>
             <td style="padding:8px;border:1px solid #ddd;text-align:center">{int(row['health_score'])} pts</td>
-            <td style="padding:8px;border:1px solid #ddd;text-align:center">{row['risco']}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center">{escape(row['risco'])}</td>
         </tr>"""
 
     linhas_risco    = "".join(linha_tabela(row) for _, row in em_risco.iterrows())
@@ -61,11 +86,14 @@ def montar_email(df):
 
     alerta = ""
     if not em_risco.empty:
-        nomes = ", ".join(em_risco["cliente"].tolist())
+        nomes = "<br>".join(
+            f"<strong>{escape(row['cliente'])}</strong> ({descrever_sequencia(row['semanas_em_risco'])})"
+            for _, row in em_risco.iterrows()
+        )
         alerta = f"""
         <div style="background:#fff3cd;border-left:4px solid #e74c3c;padding:12px;margin-bottom:20px;border-radius:4px">
             <strong>🚨 Ação necessária:</strong> {len(em_risco)} cliente(s) em risco alto esta semana:<br>
-            <strong>{nomes}</strong>
+            {nomes}
         </div>"""
 
     html = f"""
@@ -101,14 +129,18 @@ def montar_email(df):
 
 
 # --- Envia o e-mail ---
-def enviar_email(html, semana):
+def enviar_email(html, semana, caminho_preview=CAMINHO_PREVIEW):
+    """
+    Envia o e-mail, ou gera a prévia em HTML se as credenciais não estiverem configuradas.
+    Retorna False se o envio falhar.
+    """
     if not EMAIL_REMETENTE or not EMAIL_SENHA:
         print("⚠️  Variáveis de ambiente não configuradas.")
         print("    Configure EMAIL_REMETENTE e EMAIL_SENHA antes de executar.")
-        print("\n📧 Prévia do e-mail gerada — veja o arquivo 'preview_email.html'")
-        with open("preview_email.html", "w", encoding="utf-8") as f:
+        print(f"\n📧 Prévia do e-mail gerada — veja o arquivo '{caminho_preview.name}'")
+        with open(caminho_preview, "w", encoding="utf-8") as f:
             f.write(html)
-        return
+        return True
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"📊 Health Score Semanal — {semana}"
@@ -120,15 +152,26 @@ def enviar_email(html, semana):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as servidor:
             servidor.login(EMAIL_REMETENTE, EMAIL_SENHA)
             servidor.sendmail(EMAIL_REMETENTE, EMAIL_DESTINO, msg.as_string())
-        print(f"✅ E-mail enviado para {EMAIL_DESTINO}")
-    except Exception as e:
+    except (smtplib.SMTPException, OSError) as e:
         print(f"❌ Erro ao enviar e-mail: {e}")
+        return False
+
+    print(f"✅ E-mail enviado para {EMAIL_DESTINO}")
+    return True
 
 
 # --- Main ---
 def main():
     print("\n📂 Carregando relatório...")
-    df = carregar_relatorio()
+    try:
+        df = carregar_relatorio(CAMINHO_RELATORIO)
+    except FileNotFoundError:
+        print(f"❌ Arquivo não encontrado: {CAMINHO_RELATORIO.name}")
+        print("    Rode o health_score.py antes para gerar o relatório.")
+        sys.exit(1)
+    except DadosInvalidosError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
 
     print("🔍 Filtrando última semana...")
     df_semana = ultima_semana(df)
@@ -138,7 +181,8 @@ def main():
     html = montar_email(df_semana)
 
     print("📤 Enviando...")
-    enviar_email(html, semana)
+    if not enviar_email(html, semana, CAMINHO_PREVIEW):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
